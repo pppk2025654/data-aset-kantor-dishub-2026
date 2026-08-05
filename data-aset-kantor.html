@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Aset Kantor — Terpusat</title>
+<!-- === KONFIGURASI FIREBASE === -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+:root { --emas: #b8860b; --biru: #0d3b66; --abu: #f5f5f5; --hijau: #27ae60; --merah: #c0392b; }
+body { background: linear-gradient(135deg, var(--biru), #1a5276); min-height: 100vh; }
+
+.halaman-login { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+.logo { width: 120px; height: 120px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--biru); font-weight: bold; cursor: pointer; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.kotak-login { background: white; padding: 40px 30px; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); width: 100%; max-width: 420px; text-align: center; }
+.kotak-login h2 { color: var(--biru); margin-bottom: 25px; }
+.gambar-latar { width: 100%; height: 140px; background: url('https://picsum.photos/id/1018/800/300') center/cover; border-radius: 10px; margin-bottom: 20px; }
+.input { width: 100%; padding: 12px 15px; margin: 8px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+.input:focus { outline: none; border-color: var(--emas); }
+.tombol { width: 100%; padding: 12px; background: var(--biru); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+.tombol:hover { background: #0a2c4d; }
+.tombol-publik { background: var(--emas); }
+.tombol-publik:hover { background: #9a7410; }
+.tombol-keluar { background: var(--merah); margin-bottom: 20px; max-width: 180px; }
+.tombol-simpan { background: var(--hijau); }
+.tautan-lupa { display: inline-block; margin-top: 15px; color: var(--biru); text-decoration: underline; font-size: 14px; }
+.pemisah { margin: 18px 0; color: #888; font-size: 14px; }
+
+.halaman-publik, .halaman-admin { display: none; padding: 25px; max-width: 1200px; margin: 0 auto; }
+.judul { color: white; text-align: center; margin-bottom: 25px; }
+.kotak-pencarian, .kotak-form { background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; }
+.baris { display: flex; flex-wrap: wrap; gap: 12px; }
+.baris .input { flex: 1; min-width: 180px; margin: 0; }
+.kartu-aset { border: 1px solid #e0e0e0; border-radius: 10px; padding: 18px; margin-bottom: 15px; }
+.kartu-aset h4 { color: var(--biru); margin-bottom: 10px; font-size: 17px; }
+.form-group { margin-bottom: 12px; }
+label { display: block; margin-bottom: 5px; font-weight: 600; color: #444; font-size: 15px; }
+input, select, textarea { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 7px; font-size: 15px; }
+.dua-kolom { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tiga-kolom { display: grid-template-columns: repeat(3,1fr); gap: 10px; }
+.pengaturan { border-top: 2px dashed #ccc; margin-top: 30px; padding-top: 20px; }
+.sembunyi { display: none !important; }
+.memuat { text-align: center; padding: 20px; color: #666; }
+a { color: var(--biru); text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- ============== HALAMAN LOGIN ============== -->
+<div class="halaman-login" id="halamanLogin">
+<div class="logo" onclick="klikLogo()">🏛️</div>
+<div class="kotak-login">
+<div class="gambar-latar" id="gambarLatarLogin"></div>
+<h2 id="teksJudulLogin">DATA ASET KANTOR</h2>
+
+<input type="password" id="pinPublik" class="input" placeholder="🔑 Masukkan PIN Akses Umum">
+<button class="tombol tombol-publik" onclick="masukPublik()">Lihat Data Aset</button>
+
+<div class="pemisah">——— Atau ———</div>
+
+<input type="password" id="pinAdmin" class="input" placeholder="🔑 PIN Admin">
+<input type="password" id="sandiAdmin" class="input" placeholder="🔒 Kata Sandi Admin">
+<button class="tombol" onclick="masukAdmin()">Masuk Sebagai Admin</button>
+
+<a href="mailto:admin@kantoranda.com?subject=Permintaan%20Ubah%20Kata%20Sandi%20Aset&body=Saya%20ingin%20mengubah%20kata%20sandi%20aplikasi%20aset.%0ANama:%0ATanggal:%0AKeterangan:" class="tautan-lupa">Lupa Kata Sandi? Klik di sini</a>
+</div>
+</div>
+
+<!-- ============== HALAMAN PUBLIK ============== -->
+<div class="halaman-publik" id="halamanPublik">
+<button class="tombol tombol-keluar" onclick="keluar()">← Kembali</button>
+<h2 class="judul">🔍 PENCARIAN DATA ASET</h2>
+<div class="kotak-pencarian">
+<div class="baris">
+<input type="text" id="cariJenis" class="input" placeholder="Jenis Aset (contoh: Tanah)">
+<input type="text" id="cariProvinsi" class="input" placeholder="Provinsi">
+<input type="text" id="cariKota" class="input" placeholder="Kota/Kabupaten">
+</div>
+<button class="tombol" onclick="cariAset()">Cari Data</button>
+</div>
+<div class="kotak-pencarian" id="hasilPencarian">
+<p class="memuat">Masukkan kata kunci lalu klik Cari Data</p>
+</div>
+</div>
+
+<!-- ============== HALAMAN ADMIN ============== -->
+<div class="halaman-admin" id="halamanAdmin">
+<button class="tombol tombol-keluar" onclick="keluar()">← Kembali</button>
+<h2 class="judul">⚙️ INPUT DATA ASET & PENGATURAN</h2>
+
+<div class="kotak-form">
+<h3 style="margin-bottom:15px; color:#0d3b66;">📋 FORM DATA ASET</h3>
+<div class="dua-kolom">
+<div class="form-group"><label>Jenis Aset</label><input type="text" id="jenisAset" placeholder="Contoh: Tanah, Bangunan, Kendaraan"></div>
+<div class="form-group"><label>Provinsi</label><input type="text" id="provinsi" placeholder="Contoh: Sulawesi Selatan"></div>
+</div>
+<div class="dua-kolom">
+<div class="form-group"><label>Kota / Kabupaten</label><input type="text" id="kota" placeholder="Contoh: Makassar"></div>
+<div class="form-group"><label>Titik Lokasi (Google Maps)</label><input type="url" id="lokasiMaps" placeholder="Tautan dari Google Maps"></div>
+</div>
+<div class="form-group"><label>Nama Aset</label><input type="text" id="namaAset" placeholder="Nama / Keterangan Aset"></div>
+<div class="tiga-kolom">
+<div class="form-group"><label>Kode Aset</label><input type="text" id="kodeAset" placeholder="Kode"></div>
+<div class="form-group"><label>Jumlah Aset</label><input type="number" id="jumlahAset" placeholder="0"></div>
+<div class="form-group"><label>Luas (m²)</label><input type="number" id="luasAset" placeholder="0"></div>
+</div>
+<div class="dua-kolom">
+<div class="form-group"><label>Tahun Perolehan</label><input type="number" id="tahunAset" placeholder="2024"></div>
+<div class="form-group"><label>Alamat Lengkap</label><input type="text" id="alamatAset" placeholder="Alamat lengkap lokasi aset"></div>
+</div>
+<h4 style="margin:12px 0 6px; color:#444;">Status Aset — Hak & Sertifikat</h4>
+<div class="dua-kolom">
+<div class="form-group"><label>Tanggal Sertifikat</label><input type="date" id="tglSertifikat"></div>
+<div class="form-group"><label>Nomor Sertifikat</label><input type="text" id="nomorSertifikat" placeholder="Nomor Sertifikat"></div>
+</div>
+<div class="dua-kolom">
+<div class="form-group"><label>Penggunaan Aset</label><input type="text" id="penggunaan" placeholder="Fungsi / Penggunaan"></div>
+<div class="form-group"><label>Asal Usul Aset</label><input type="text" id="asalUsul" placeholder="Dari mana diperoleh"></div>
+</div>
+<div class="form-group"><label>Harga / Nilai Perolehan (Rp)</label><input type="number" id="hargaAset" placeholder="0"></div>
+<div class="form-group"><label>Keterangan Lainnya</label><textarea id="keterangan" rows="3" placeholder="Catatan tambahan..."></textarea></div>
+<div class="dua-kolom">
+<div class="form-group"><label>Unggah Foto Aset</label><input type="file" id="fotoAset" accept="image/*"></div>
+<div class="form-group"><label>Unggah Dokumen</label><input type="file" id="dokumenAset"></div>
+</div>
+<button class="tombol tombol-simpan" onclick="simpanAset()">💾 Simpan Data Aset</button>
+</div>
+
+<div class="kotak-form pengaturan">
+<h3 style="margin-bottom:15px; color:#b8860b;">🔧 PENGATURAN HALAMAN AWAL & AKSES</h3>
+<div class="form-group"><label>Ubah Gambar Latar (tautan)</label><input type="url" id="aturGambar" placeholder="Tautan gambar"></div>
+<div class="form-group"><label>Ubah Judul Halaman Awal</label><input type="text" id="aturJudul" placeholder="Judul baru"></div>
+<div class="dua-kolom">
+<div class="form-group"><label>Ubah PIN Akses Umum</label><input type="password" id="aturPinPublik"></div>
+<div class="form-group"><label>Ubah PIN Admin</label><input type="password" id="aturPinAdmin"></div>
+</div>
+<div class="form-group"><label>Ubah Kata Sandi Admin</label><input type="password" id="aturSandiAdmin"></div>
+<button class="tombol" onclick="simpanPengaturan()">✅ Simpan Pengaturan</button>
+</div>
+</div>
+
+<script>
+// ==================================================
+// ⚠️ TEMPELKAN KONFIGURASI DARI FIREBASE DI BAWAH INI
+// ==================================================
+const firebaseConfig = {
+apiKey: "AIzaSyA_0q_hLWzDo2fIM-iUeJRXWohUKMKNfnE",
+authDomain: "aset-dinas-perhubungan-sul-sel.firebaseapp.com",
+projectId: "aset-dinas-perhubungan-sul-sel",
+storageBucket: "aset-dinas-perhubungan-sul-sel.firebasestorage.app",
+messagingSenderId: "312387535414",
+appId: "1:312387535414:web:359e8139f25b7411af4e97",
+measurementId: "G-RZXGP8D8Y1"
+};
+// ==================================================
+
+// Inisialisasi Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+let pengaturan = {
+pinPublik: "1234",
+pinAdmin: "admin123",
+sandiAdmin: "sandi123",
+judul: "DATA ASET KANTOR",
+gambarLatar: "https://picsum.photos/id/1018/800/300"
+};
+
+// Muat pengaturan dari database
+async function muatPengaturan() {
+const doc = await db.collection('sistem').doc('pengaturan').get();
+if(doc.exists) { pengaturan = doc.data(); }
+document.getElementById('teksJudulLogin').textContent = pengaturan.judul;
+document.getElementById('gambarLatarLogin').style.backgroundImage = `url(${pengaturan.gambarLatar})`;
+}
+
+function klikLogo() { alert("Selamat datang di Data Aset Kantor!"); }
+function tampilkanHalaman(id) {
+['halamanLogin','halamanPublik','halamanAdmin'].forEach(h => document.getElementById(h).classList.add('sembunyi'));
+document.getElementById(id).classList.remove('sembunyi');
+}
+function keluar() {
+tampilkanHalaman('halamanLogin');
+document.querySelectorAll('input').forEach(i => i.value='');
+}
+
+function masukPublik() {
+if(document.getElementById('pinPublik').value === pengaturan.pinPublik) tampilkanHalaman('halamanPublik');
+else alert("PIN Umum salah!");
+}
+function masukAdmin() {
+if(document.getElementById('pinAdmin').value === pengaturan.pinAdmin && document.getElementById('sandiAdmin').value === pengaturan.sandiAdmin) tampilkanHalaman('halamanAdmin');
+else alert("PIN atau Kata Sandi Admin salah!");
+}
+
+// Cari data aset
+async function cariAset() {
+let jenis = document.getElementById('cariJenis').value.trim().toLowerCase();
+let prov = document.getElementById('cariProvinsi').value.trim().toLowerCase();
+let kota = document.getElementById('cariKota').value.trim().toLowerCase();
+let snapshot = await db.collection('aset').get();
+let hasil = [];
+snapshot.forEach(doc => {
+let a = doc.data();
+if((!jenis || a.jenis?.toLowerCase().includes(jenis)) &&
+(!prov || a.provinsi?.toLowerCase().includes(prov)) &&
+(!kota || a.kota?.toLowerCase().includes(kota))) hasil.push(a);
+});
+let wadah = document.getElementById('hasilPencarian');
+if(hasil.length === 0) { wadah.innerHTML = "<p class='memuat'>Data tidak ditemukan</p>"; return; }
+wadah.innerHTML = hasil.map(a => `
+<div class="kartu-aset">
+<h4>${a.namaAset || '-'} | ${a.kodeAset || '-'}</h4>
+<p><strong>Jenis:</strong> ${a.jenis || '-'} | <strong>Lokasi:</strong> ${a.provinsi || '-'}, ${a.kota || '-'}</p>
+<p><strong>Alamat:</strong> ${a.alamat || '-'}</p>
+<p><strong>Luas:</strong> ${a.luas || '-'} m² | <strong>Tahun:</strong> ${a.tahun || '-'}</p>
+<p><strong>Sertifikat:</strong> ${a.tglSertifikat || '-'} — No. ${a.nomorSertifikat || '-'}</p>
+<p><strong>Harga:</strong> Rp ${Number(a.harga||0).toLocaleString('id-ID')} | <strong>Asal:</strong> ${a.asalUsul || '-'}</p>
+${a.maps ? `<p><strong>Lokasi:</strong> <a href="${a.maps}" target="_blank">Buka di Google Maps</a></p>` : ''}
+${a.keterangan ? `<p><strong>Keterangan:</strong> ${a.keterangan}</p>` : ''}
+</div>`).join('');
+}
+
+// Simpan data aset ke database terpusat
+async function simpanAset() {
+let fotoFile = document.getElementById('fotoAset').files[0];
+let dokFile = document.getElementById('dokumenAset').files[0];
+let fotoUrl = '', dokUrl = '';
+
+let aset = {
+jenis: document.getElementById('jenisAset').value,
+provinsi: document.getElementById('provinsi').value,
+kota: document.getElementById('kota').value,
+maps: document.getElementById('lokasiMaps').value,
+namaAset: document.getElementById('namaAset').value,
+kodeAset: document.getElementById('kodeAset').value,
+jumlahAset: document.getElementById('jumlahAset').value,
+luas: document.getElementById('luasAset').value,
+tahun: document.getElementById('tahunAset').value,
+alamat: document.getElementById('alamatAset').value,
+tglSertifikat: document.getElementById('tglSertifikat').value,
+nomorSertifikat: document.getElementById('nomorSertifikat').value,
+penggunaan: document.getElementById('penggunaan').value,
+asalUsul: document.getElementById('asalUsul').value,
+harga: document.getElementById('hargaAset').value,
+keterangan: document.getElementById('keterangan').value,
+waktu: new Date()
+};
+
+try {
+await db.collection('aset').add(aset);
+alert("✅ Data Aset Berhasil Disimpan! Tersimpan di Pusat.");
+document.querySelectorAll('#halamanAdmin input, #halamanAdmin textarea').forEach(el => el.value='');
+} catch(e) { alert("❌ Gagal menyimpan: " + e.message); }
+}
+
+// Simpan pengaturan
+async function simpanPengaturan() {
+if(document.getElementById('aturJudul').value) pengaturan.judul = document.getElementById('aturJudul').value;
+if(document.getElementById('aturGambar').value) pengaturan.gambarLatar = document.getElementById('aturGambar').value;
+if(document.getElementById('aturPinPublik').value) pengaturan.pinPublik = document.getElementById('aturPinPublik').value;
+if(document.getElementById('aturPinAdmin').value) pengaturan.pinAdmin = document.getElementById('aturPinAdmin').value;
+if(document.getElementById('aturSandiAdmin').value) pengaturan.sandiAdmin = document.getElementById('aturSandiAdmin').value;
+
+await db.collection('sistem').doc('pengaturan').set(pengaturan);
+muatPengaturan();
+alert("✅ Pengaturan disimpan! Berlaku untuk semua perangkat.");
+}
+
+// Jalankan saat dibuka
+muatPengaturan();
+</script>
+</body>
+</html>
